@@ -1,0 +1,7 @@
+streamlit/files/
+streamlit/cache/
+streamlit/assets/
+streamlit/__pycache__
+streamlit/.env
+streamlit/temp/
+*.pyc
