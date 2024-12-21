@@ -1,7 +1,4 @@
-files/
-cache/
 assets/
 __pycache__
 .env
-temp/
 *.pyc

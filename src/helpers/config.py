@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     APP_NAME: str
 
     DEVICE: str
+    TEMP_DIR: str
+    CACHE_DIR: str
 
     FILE_ALLOWED_TYPES: list
     FILE_MAX_SIZE: int
@@ -12,18 +14,12 @@ class Settings(BaseSettings):
 
     GENERATION_MODEL_ID: str = None
     EMBEDDING_MODEL_ID: str = None
-    EMBEDDING_MODEL_SIZE: int = None
-    INPUT_DAFAULT_MAX_CHARACTERS: int = None
-    GENERATION_DAFAULT_MAX_TOKENS: int = None
-    GENERATION_DAFAULT_TEMPERATURE: float = None
 
-    VECTOR_DB_BACKEND : str
-    VECTOR_DB_PATH : str
-    VECTOR_DB_DISTANCE_METHOD: str = None
+    GENERATION_TEMPERATURE: float = None
+    SUMMERIZATION_TEMPERATURE: float = None
 
-    PRIMARY_LANG: str = "en"
-    DEFAULT_LANG: str = "en"
-
+    VECTOR_DB_PATH: str = None
+    
     class Config:
         env_file = ".env"
 

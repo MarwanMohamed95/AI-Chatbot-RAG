@@ -11,8 +11,10 @@ uploader_router = APIRouter(
     prefix="/api/v1",
 )
 
+app_settings = get_settings()
+
 # Create a temporary directory for file uploads
-TEMP_DIR = "assets/temp"
+TEMP_DIR = app_settings.TEMP_DIR
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # validate the file properties
@@ -74,7 +76,7 @@ async def process_file(file_path: str, session_id: str = Form(...)):
                 }
             )
 
-        chunks = data_processor.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
+        chunks = data_processor.chunk(file_path, docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
                                       chunk_overlap=DataEnum.OVERLAP_SIZE.value)
 
         if chunks is None or len(chunks) == 0:

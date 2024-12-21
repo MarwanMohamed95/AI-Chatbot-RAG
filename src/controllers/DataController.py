@@ -25,9 +25,7 @@ class DataController(BaseController):
     def read_file(self, file_path):
         
         # validate the file properties
-        data_controller = DataController()
-        
-        file_extension = data_controller.get_file_extension(file_path=file_path)
+        file_extension = BaseController().get_file_extension(file_path=file_path)
 
         if file_extension == ExtensionEnum.TXT.value:
             loader = TextLoader(file_path)

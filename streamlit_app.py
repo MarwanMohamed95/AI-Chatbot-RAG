@@ -39,7 +39,7 @@ def file_added():
         return
 
     uploaded_file = st.session_state.file_uploaded
-    temp_dir = "assets/temp"
+    temp_dir = app_settings.TEMP_DIR
     os.makedirs(temp_dir, exist_ok=True)
     file_path = os.path.join(temp_dir, uploaded_file.name)
 
@@ -52,7 +52,7 @@ def file_added():
             
             docs = data_controller.read_file(file_path=file_path)
 
-            chunks = process_controller.chunk(docs)
+            chunks = process_controller.chunk(file_path, docs)
             embedding_model, vector_index = process_controller.create_vector_index_and_embedding_model(chunks)
             st.session_state.retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
             
@@ -65,7 +65,7 @@ def update_summarization_model():
     st.session_state.disabled_ans_model = False
     model_name = st.session_state.sum_model
     ollama_model_name = re.search("(.*)  Size:", model_name).group(1)
-    st.session_state.retriever_chain = llm_controller.create_context_aware_chain(st.session_state.retriever, ollama_model_name)
+    st.session_state.retriever_chain = llm_controller.create_context_aware_chain(st.session_state.retriever, ollama_model_name, app_settings.SUMMERIZATION_TEMPERATURE)
 
 def update_answer_model():
     model_name = st.session_state.ans_model
@@ -75,6 +75,7 @@ def update_answer_model():
     st.session_state.retriever_answer_chain = llm_controller.create_answering_chain(
         ollama_model_name, 
         st.session_state.retriever_chain,
+        app_settings.GENERATION_TEMPERATURE
     )
 
     st.session_state.final_chain = RunnableWithMessageHistory(

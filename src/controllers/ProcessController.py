@@ -1,10 +1,14 @@
 from langchain.embeddings import CacheBackedEmbeddings
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.storage import LocalFileStore
 from langchain.text_splitter import NLTKTextSplitter
 from src.controllers import BaseController
+from src.models.enums import ExtensionEnum
 from src.helpers.config import get_settings
+import hashlib
+import os
+from tqdm import tqdm
 
 import nltk
 # Download necessary NLTK components for text tokenization
@@ -17,7 +21,7 @@ class ProcessController(BaseController):
         super().__init__()
         self.settings = get_settings()
 
-    def chunk(self, docs, chunk_size=1000, chunk_overlap=50):
+    def chunk(self, file_path, docs, chunk_size=1000, chunk_overlap=50):
         """
         Splits the documents into smaller chunks using NLTK-based text splitting.
         
@@ -33,7 +37,11 @@ class ProcessController(BaseController):
             list: A list of Document objects representing the text chunks.
         """
         # Extract text content from Document objects
-        texts = [doc.page_content for doc in docs if hasattr(doc, "page_content")]
+        file_extension = BaseController().get_file_extension(file_path=file_path)
+        if file_extension == ExtensionEnum.CSV.value:
+            texts = [",".join(doc.page_content) for doc in docs if hasattr(doc, "page_content")]
+        else:
+            texts = [doc.page_content for doc in docs if hasattr(doc, "page_content")]
         
         # Initialize the text splitter with the specified chunk size and overlap
         text_splitter = NLTKTextSplitter(
@@ -50,46 +58,83 @@ class ProcessController(BaseController):
         # Log the number of generated chunks for debugging
         return chunks
 
+
     def create_vector_index_and_embedding_model(self, chunks):
         """
-        Creates an embedding model and vector index using Langchain and Hugging Face embeddings.
+        Creates an embedding model and vector index using Langchain and Ollama embeddings.
         
         This function takes a list of text chunks (documents), creates an embedding model using 
-        Hugging Face's pre-trained `e5-small-v2` model, and then uses FAISS (a vector store) to 
-        create a vector index that allows for efficient similarity search.
+        Ollama, and then uses FAISS (a vector store) to create a vector index that allows for 
+        efficient similarity search. The function includes caching and batch processing for 
+        better performance.
         
         Args:
-            chunks (list of str): List of text chunks (documents) that need to be indexed. 
-                                Each chunk is a string representing a document or text segment.
+            chunks (list): List of Document objects that need to be indexed. 
+                        Each chunk should have a page_content attribute containing the text.
         
         Returns:
             tuple: Returns a tuple containing:
-                - embeddings_model: The Hugging Face embedding model used for encoding the text.
+                - embeddings_model: The Ollama embedding model used for encoding the text.
                 - vector_index: The FAISS index that stores the vectors of the documents for fast retrieval.
         
         Notes:
-            - The `LocalFileStore` is used to store embeddings and cache them for future use.
-            - The embeddings are cached using the `CacheBackedEmbeddings` wrapper to prevent redundant computations.
-            - This function uses a CPU-based model, which can be adjusted for GPU usage if needed.
+            - Uses LocalFileStore for caching embeddings to prevent redundant computations
+            - Processes documents in batches for better memory management
+            - Includes progress tracking for longer operations
+            - Safely handles index creation and storage
         """
         
         # Step 1: Set up local storage for cached embeddings
-        store = LocalFileStore("./assets/cache/")  # Directory where embeddings will be cached
+        cache_dir = get_settings().CACHE_DIR
+        store = LocalFileStore(cache_dir)
+        os.makedirs(cache_dir, exist_ok=True)
         
-        # Step 2: Define the embedding model ID and model arguments (device, remote code trust)
-        embed_model_id = self.settings.EMBEDDING_MODEL_ID  # Hugging Face model ID for embeddings
-        model_kwargs = {"device": self.settings.DEVICE, "trust_remote_code": True}  # Parameters for the model (use CPU)
+        # Step 2: Initialize the Ollama embedding model
+        embeddings_model = OllamaEmbeddings(model=self.settings.EMBEDDING_MODEL_ID)
         
-        # Step 3: Create the Hugging Face embeddings model using the specified model ID and arguments
-        embeddings_model = HuggingFaceEmbeddings(model_name=embed_model_id, model_kwargs=model_kwargs)
+        # Step 3: Create cache-backed embeddings with safe key encoding
+        namespace = hashlib.sha256(self.settings.EMBEDDING_MODEL_ID.encode()).hexdigest()
+        embedder = CacheBackedEmbeddings.from_bytes_store(
+            embeddings_model,
+            store,
+            namespace=namespace
+        )
         
-        # Step 4: Wrap the Hugging Face model with caching to avoid recalculating embeddings
-        embedder = CacheBackedEmbeddings.from_bytes_store(embeddings_model, store, namespace=embed_model_id)
-        
-        # Step 5: Use FAISS to create a vector index from the documents (chunks)
-        vector_index = FAISS.from_documents(chunks, embedder)  # Generate the index based on the document embeddings
-        
-        # Return the embeddings model and the FAISS vector index for later use
-        return embeddings_model, vector_index
+        # Step 4: Check for existing vector store
+        vector_store_path = get_settings().VECTOR_DB_PATH
+        if os.path.exists(vector_store_path):
+            try:
+                vector_index = FAISS.load_local(
+                    vector_store_path,
+                    embedder,
+                    allow_dangerous_deserialization=True
+                )
+                return embeddings_model, vector_index
+            except Exception as e:
+                print(f"Error loading vector store: {e}")
 
         
+        # Step 5: Process documents in batches to create vector store
+        batch_size = 10
+        all_embeddings = []
+        all_texts = []
+        
+        for i in tqdm(range(0, len(chunks), batch_size), desc="Processing documents"):
+            batch = chunks[i:i + batch_size]
+            texts = [doc.page_content for doc in batch]
+            all_texts.extend(texts)
+            embeddings = embedder.embed_documents(texts)
+            all_embeddings.extend(embeddings)
+        
+        # Step 6: Create FAISS index from processed embeddings
+        vector_index = FAISS.from_embeddings(
+            text_embeddings=list(zip(all_texts, all_embeddings)),
+            embedding=embedder
+        )
+        
+        # Step 7: Save vector store for future use
+        os.makedirs(vector_store_path, exist_ok=True)
+        vector_index.save_local(vector_store_path)
+        
+        return embeddings_model, vector_index
+    
