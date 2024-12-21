@@ -1,7 +1,7 @@
-streamlit/files/
-streamlit/cache/
-streamlit/assets/
-streamlit/__pycache__
-streamlit/.env
-streamlit/temp/
+files/
+cache/
+assets/
+__pycache__
+.env
+temp/
 *.pyc

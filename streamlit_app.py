@@ -1,21 +1,19 @@
 import os
 import streamlit as st
-import data_loader
-import embedding_faiss
-import context_aware
-import text_generation
+from src.controllers import DataController, ProcessController, LLMController
 import re
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain.callbacks.base import BaseCallbackHandler
 import ollama
-from typing import Iterator, Any, Dict
-from langchain_core.output_parsers import StrOutputParser
-from operator import itemgetter
+from src.helpers.config import get_settings
 
 SESSION_ID = "1234"
+data_controller = DataController()
+process_controller = ProcessController()
+llm_controller = LLMController()
+app_settings = get_settings()
 
 class StreamHandler(BaseCallbackHandler):
     def __init__(self, container: st.delta_generator.DeltaGenerator, initial_text: str = ""):
@@ -41,8 +39,7 @@ def file_added():
         return
 
     uploaded_file = st.session_state.file_uploaded
-    file_extension = uploaded_file.name.split('.')[-1].lower()
-    temp_dir = "temp"
+    temp_dir = "assets/temp"
     os.makedirs(temp_dir, exist_ok=True)
     file_path = os.path.join(temp_dir, uploaded_file.name)
 
@@ -53,20 +50,10 @@ def file_added():
         with st.spinner("Processing file, please wait..."):
             st.session_state.disabled_sum_model = False
             
-            if file_extension == 'txt':
-                docs = data_loader.read_txt(file_path)
-            elif file_extension == 'pdf':
-                docs = data_loader.read_pdf(file_path)
-            elif file_extension == 'html':
-                docs = data_loader.read_html(file_path)
-            elif file_extension in ['http', 'https']:
-                docs = data_loader.read_webpage(file_path)
-            else:
-                st.error(f"Unsupported file type: {file_extension}")
-                return
+            docs = data_controller.read_file(file_path=file_path)
 
-            chunks = data_loader.chunk(docs)
-            embedding_model, vector_index = embedding_faiss.create_vector_index_and_embedding_model(chunks)
+            chunks = process_controller.chunk(docs)
+            embedding_model, vector_index = process_controller.create_vector_index_and_embedding_model(chunks)
             st.session_state.retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
             
             st.success(f"File processed successfully, and retriever created.")
@@ -78,14 +65,14 @@ def update_summarization_model():
     st.session_state.disabled_ans_model = False
     model_name = st.session_state.sum_model
     ollama_model_name = re.search("(.*)  Size:", model_name).group(1)
-    st.session_state.retriever_chain = context_aware.create_context_aware_chain(st.session_state.retriever, ollama_model_name)
+    st.session_state.retriever_chain = llm_controller.create_context_aware_chain(st.session_state.retriever, ollama_model_name)
 
 def update_answer_model():
     model_name = st.session_state.ans_model
     ollama_model_name = re.search("(.*)  Size:", model_name).group(1)
     
     # Create the base answering chain with streaming enabled
-    st.session_state.retriever_answer_chain = text_generation.create_answering_chain(
+    st.session_state.retriever_answer_chain = llm_controller.create_answering_chain(
         ollama_model_name, 
         st.session_state.retriever_chain,
     )
