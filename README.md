@@ -50,7 +50,7 @@ The **RAG Assistant** is an interactive AI-powered system built with Streamlit, 
    `For Streamlit App:`
 
    ```bash
-   python3 -m streamlit run src/streamlit_app.py
+   python3 -m streamlit run streamlit_app.py
    ```
 
 2. **Access the Interface**:
