@@ -68,6 +68,7 @@ async def generate_answer(session_id: str = Form(...), user_query: str = Form(..
 
         return JSONResponse(
             content={
+                "answer": answer,
                 "signal": ResponseEnums.RAG_ANSWER_SUCCESS.value
             }
         )

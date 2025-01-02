@@ -67,7 +67,7 @@ class ProcessController(BaseController):
         """
         
         # Step 1: Set up local storage for cached embeddings
-        cache_dir = get_settings().CACHE_DIR
+        cache_dir = self.settings.CACHE_DIR
         store = LocalFileStore(cache_dir)
         os.makedirs(cache_dir, exist_ok=True)
         
@@ -95,24 +95,7 @@ class ProcessController(BaseController):
             except Exception as e:
                 print(f"Error loading vector store: {e}")
 
-        
-        # Step 5: Process documents in batches to create vector store
-        batch_size = 10
-        all_embeddings = []
-        all_texts = []
-        
-        for i in tqdm(range(0, len(chunks), batch_size), desc="Processing documents"):
-            batch = chunks[i:i + batch_size]
-            texts = [doc.page_content for doc in batch]
-            all_texts.extend(texts)
-            embeddings = embedder.embed_documents(texts)
-            all_embeddings.extend(embeddings)
-        
-        # Step 6: Create FAISS index from processed embeddings
-        vector_index = FAISS.from_embeddings(
-            text_embeddings=list(zip(all_texts, all_embeddings)),
-            embedding=embedder
-        )
+        vector_index = FAISS.from_documents(chunks, embedder)
         
         # Step 7: Save vector store for future use
         os.makedirs(vector_store_path, exist_ok=True)

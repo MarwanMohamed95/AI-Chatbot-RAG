@@ -5,7 +5,6 @@ import re
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain.callbacks.base import BaseCallbackHandler
 import ollama
 from src.helpers.config import get_settings
 
@@ -76,8 +75,8 @@ def chat_with_llm(session_id, input):
         yield output
 
 # Streamlit page configuration
-st.set_page_config(page_title="RAG Assistant")
-st.title("RAG Assistant")
+st.set_page_config(page_title="AI Assistant")
+st.title("AI Assistant")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -110,7 +109,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Handle user input
-if user_query := st.chat_input("Message Assistant"):
+if user_query := st.chat_input("What is in your mind ?"):
     if "retriever" not in st.session_state:
         st.error("Retriever, summarization model and answering model were not set.")
     elif "summerizer_chain" not in st.session_state:
@@ -136,4 +135,4 @@ if user_query := st.chat_input("Message Assistant"):
             st.session_state.chat_store[SESSION_ID] = ChatMessageHistory()
         st.session_state.chat_store[SESSION_ID].add_user_message(user_query)
         st.session_state.chat_store[SESSION_ID].add_ai_message(response)
-            
+        
