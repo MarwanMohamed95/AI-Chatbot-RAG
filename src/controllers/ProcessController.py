@@ -1,5 +1,6 @@
 from langchain.embeddings import CacheBackedEmbeddings
-from langchain_community.embeddings import OllamaEmbeddings
+# from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.storage import LocalFileStore
 from langchain.text_splitter import NLTKTextSplitter

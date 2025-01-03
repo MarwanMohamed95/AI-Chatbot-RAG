@@ -60,9 +60,10 @@ processor_router = APIRouter(
 )
 
 @processor_router.post("/process-file/")
-async def process_file(file_path: str, session_id: str = Form(...)):
+async def process_file(file_path: str,
+                       app_settings: Settings = Depends(get_settings)):
     
-
+    session_id = app_settings.SESSION_ID
     data_processor = ProcessController()
     try:
         

@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
 
     APP_NAME: str
+    SESSION_ID: str
 
     DEVICE: str
     TEMP_DIR: str
@@ -22,6 +23,7 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        arbitrary_types_allowed = True
 
 def get_settings():
     return Settings()

@@ -36,12 +36,12 @@ async def generate_answer(session_id: str = Form(...), user_query: str = Form(..
 
         chat_history = session['chat_history']
 
-        retriever_chain = llm_controller.create_context_aware_chain(retriever, ollama_model_name,
+        summerizer_chain = llm_controller.create_context_aware_chain(retriever, ollama_model_name,
                                                                     app_settings.SUMMERIZATION_TEMPERATURE)
         
         retriever_answer_chain = llm_controller.create_answering_chain(
             ollama_model_name,
-            retriever_chain,
+            summerizer_chain,
             app_settings.GENERATION_TEMPERATURE
         )
 

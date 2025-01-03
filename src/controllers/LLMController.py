@@ -1,5 +1,5 @@
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
-from langchain_community.llms.ollama import Ollama
+from langchain_ollama import ChatOllama 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -11,6 +11,9 @@ class LLMController(BaseController):
     def __init__(self):
         super().__init__()
         self.settings = get_settings()
+
+    def create_chat_model(self, model_name, temperature):
+        return ChatOllama(model=model_name, temperature=temperature, num_predict=256, base_url='http://localhost:11434')
 
     def create_context_aware_chain(self, retriever, model_name, temperature):
         """
@@ -32,8 +35,7 @@ class LLMController(BaseController):
         """
         
         # Step 1: Initialize the Ollama model with the provided model name and configuration
-        llm_summarise = Ollama(model=model_name, temperature=temperature, num_predict=256)
-        
+        llm_summarise = self.create_chat_model(model_name=model_name, temperature=temperature)
         # Step 2: Define the system prompt to guide the model in answering the user question
         prompt = """You are AI Assistant Given a chat history and the latest user question answer this question"""
         
@@ -60,12 +62,8 @@ class LLMController(BaseController):
         Returns:
             chain: The question-answering chain that incorporates context-aware retrieval.
         """
-        
-        # Initialize the Ollama language model
-        llm_answer = Ollama(
-            model=model_name,
-            temperature=temperature,
-        )
+
+        llm_answer = self.create_chat_model(model_name=model_name, temperature=temperature)
         
         # Define the system prompt
         system_prompt = """You are an intelligent AI assistant designed to assist with a wide variety of tasks.
