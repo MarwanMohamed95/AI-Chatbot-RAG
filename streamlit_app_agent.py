@@ -41,16 +41,12 @@ def file_added():
 
     try:
         with st.spinner("Processing file, please wait..."):
-            
             docs = data_controller.read_file(file_path=file_path)
-
             chunks = process_controller.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
-                                              chunk_overlap=DataEnum.OVERLAP_SIZE.value)
+                                           chunk_overlap=DataEnum.OVERLAP_SIZE.value)
             embedding_model, vector_index = process_controller.create_vector_index_and_embedding_model(chunks)
             st.session_state.retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
-
             st.success(f"File processed successfully, and retriever created.")
-    
     except ValueError as e:
         st.error(f"Failed to process the file: {e}")
 
@@ -63,54 +59,32 @@ def update_answer_model():
     model_name = st.session_state.ans_model
     ollama_model_name = re.search("(.*)  Size:", model_name).group(1)
     
-    # Create the base answering chain
-    st.session_state.answer_chain = llm_controller.create_answering_chain(
-        ollama_model_name, 
-        st.session_state.summerizer_chain,
-        app_settings.GENERATION_TEMPERATURE
-    )
-
-    st.session_state.final_chain = RunnableWithMessageHistory(
-        st.session_state.answer_chain,
-        get_session_history,
-        input_messages_key="input",
-        history_messages_key="chat_history",
-        output_messages_key="answer",
-    )
-
-    # Create retriever tools instance
     @tool
     def search_documents(query: Union[str, Dict[str, str]]) -> str:
         """Use this tool to search through documents for relevant information."""
         try:
-            search_query = query['query'] if isinstance(query, dict) else query
-            response = st.session_state.retriever.invoke(search_query)
+            response = st.session_state.retriever.invoke(query)
             return response
         except Exception as e:
             raise ToolException(f"Error searching documents: {str(e)}")
         
     tools = [search_documents]
 
-    # Create chat model
     llm = llm_controller.create_chat_model(
         ollama_model_name,
         temperature=app_settings.GENERATION_TEMPERATURE
     )
 
-    # Create prompt
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a helpful AI assistant. Use the search_documents tool to find relevant information from the documents to answer questions accurately.
             Don't Include the query in the final answer"""),
-            
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
 
-    # Create the agent
     agent = create_tool_calling_agent(llm, tools, prompt)
 
-    # Create agent executor
     agent_executor = AgentExecutor(
         agent=agent,
         tools=tools,
@@ -118,7 +92,6 @@ def update_answer_model():
         max_iterations=3
     )
 
-    # Wrap with message history
     st.session_state.final_chain = RunnableWithMessageHistory(
         agent_executor,
         get_session_history,
@@ -136,26 +109,6 @@ if "messages" not in st.session_state:
 
 if "chat_store" not in st.session_state:
     st.session_state.chat_store = {}
-
-formatted_history = []
-for msg in st.session_state.messages:
-    if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
-        if msg['role'] == "user":
-            formatted_history.append(HumanMessage(content=msg['content']))
-        elif msg['role'] == "assistant":
-            formatted_history.append(AIMessage(content=msg['content']))
-        else:
-            raise ValueError(f"Unknown message role: {msg['role']}")
-    else:
-        raise ValueError("Invalid message format. Each message must be a dict with 'role' and 'content' keys.")
-
-def chat_with_llm(session_id, user_query):
-
-    for response in st.session_state.final_chain.stream(
-        {"input": user_query, "chat_history": formatted_history},
-        config={'configurable': {'session_id': session_id}}
-    ):
-        yield response
 
 # Sidebar setup
 with st.sidebar:
@@ -182,29 +135,44 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Handle user input
-if user_query := st.chat_input("What is in your mind ?"):
+if user_query := st.chat_input("What is in your mind?"):
     if "retriever" not in st.session_state:
         st.error("Retriever, summarization model and answering model were not set.")
     elif "summerizer_chain" not in st.session_state:
         st.error("Summarization model and answering model were not set.")
-    elif "answer_chain" not in st.session_state:
+    elif "final_chain" not in st.session_state:
         st.error("Answering model was not set.")
-    elif user_query:
-        
+    else:
+        # Add user message to chat
+        st.session_state.messages.append({"role": "user", "content": user_query})
         with st.chat_message("user"):
             st.markdown(user_query)
 
-        # Add user message to chat
-        st.session_state.messages.append({"role": "user", "content": user_query})
-
+        # Create a placeholder for the assistant's response
         with st.chat_message("assistant"):
-            response = st.write_stream(chat_with_llm(SESSION_ID, user_query))
-        
-        # Add AI response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        # Update chat store for LangChain
-        if SESSION_ID not in st.session_state.chat_store:
-            st.session_state.chat_store[SESSION_ID] = ChatMessageHistory()
-        st.session_state.chat_store[SESSION_ID].add_user_message(user_query)
-        st.session_state.chat_store[SESSION_ID].add_ai_message(response)
+            message_placeholder = st.empty()
+            full_response = ""
+            
+            # Stream the response
+            for chunk in st.session_state.final_chain.stream(
+                {"input": user_query},
+                config={'configurable': {'session_id': SESSION_ID}}
+            ):
+                # Extract the actual content from the chunk
+                if "output" in chunk:
+                    content = chunk["output"]
+                    st.markdown(content)
+                                
+                    # Only append non-empty content
+                    if content.strip():
+                        full_response += content
+
+        # Add assistant's message to chat history only if we got a response
+        if full_response.strip():
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            
+            # Update chat store for LangChain
+            if SESSION_ID not in st.session_state.chat_store:
+                st.session_state.chat_store[SESSION_ID] = ChatMessageHistory()
+            st.session_state.chat_store[SESSION_ID].add_user_message(user_query)
+            st.session_state.chat_store[SESSION_ID].add_ai_message(full_response)
