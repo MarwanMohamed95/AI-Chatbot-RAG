@@ -2,6 +2,7 @@ import os
 import streamlit as st
 from src.controllers import DataController, ProcessController, LLMController
 import re
+from src.models.enums import DataEnum
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -43,7 +44,8 @@ def file_added():
             
             docs = data_controller.read_file(file_path=file_path)
 
-            chunks = process_controller.chunk(file_path, docs)
+            chunks = process_controller.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
+                                              chunk_overlap=DataEnum.OVERLAP_SIZE.value)
             embedding_model, vector_index = process_controller.create_vector_index_and_embedding_model(chunks)
             st.session_state.retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 

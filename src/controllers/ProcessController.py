@@ -1,5 +1,4 @@
 from langchain.embeddings import CacheBackedEmbeddings
-# from langchain_community.embeddings import OllamaEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.storage import LocalFileStore
@@ -9,10 +8,8 @@ from src.models.enums import ExtensionEnum
 from src.helpers.config import get_settings
 import hashlib
 import os
-from tqdm import tqdm
 
 import nltk
-# Download necessary NLTK components for text tokenization
 nltk.download('punkt_tab')
 nltk.download('punkt')
 
@@ -22,12 +19,7 @@ class ProcessController(BaseController):
         super().__init__()
         self.settings = get_settings()
 
-    def chunk(self, file_path, docs, chunk_size=1000, chunk_overlap=50):
-        
-        # Extract text content from Document objects
-        file_extension = BaseController().get_file_extension(file_path=file_path)
-        # if file_extension == ExtensionEnum.CSV.value:
-        #     texts = [",".join(doc.page_content) for doc in docs if hasattr(doc, "page_content")]
+    def chunk(self, docs, chunk_size=1000, chunk_overlap=50):
         
         # Initialize the text splitter with the specified chunk size and overlap
         text_splitter = NLTKTextSplitter(
@@ -36,9 +28,7 @@ class ProcessController(BaseController):
             length_function=len
         )
         
-        chunks = text_splitter.split_documents(docs)
-        
-        # Log the number of generated chunks for debugging
+        chunks = text_splitter.split_documents(docs)        
         return chunks
 
 
@@ -48,23 +38,15 @@ class ProcessController(BaseController):
         
         This function takes a list of text chunks (documents), creates an embedding model using 
         Ollama, and then uses FAISS (a vector store) to create a vector index that allows for 
-        efficient similarity search. The function includes caching and batch processing for 
-        better performance.
+        efficient similarity search. The function includes caching.
         
         Args:
             chunks (list): List of Document objects that need to be indexed. 
-                        Each chunk should have a page_content attribute containing the text.
         
         Returns:
             tuple: Returns a tuple containing:
                 - embeddings_model: The Ollama embedding model used for encoding the text.
                 - vector_index: The FAISS index that stores the vectors of the documents for fast retrieval.
-        
-        Notes:
-            - Uses LocalFileStore for caching embeddings to prevent redundant computations
-            - Processes documents in batches for better memory management
-            - Includes progress tracking for longer operations
-            - Safely handles index creation and storage
         """
         
         # Step 1: Set up local storage for cached embeddings
@@ -84,7 +66,7 @@ class ProcessController(BaseController):
         )
         
         # Step 4: Check for existing vector store
-        vector_store_path = get_settings().VECTOR_DB_PATH
+        vector_store_path = self.settings.VECTOR_DB_PATH
         if os.path.exists(vector_store_path):
             try:
                 vector_index = FAISS.load_local(

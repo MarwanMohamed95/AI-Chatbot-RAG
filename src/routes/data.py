@@ -11,12 +11,6 @@ uploader_router = APIRouter(
     prefix="/api/v1",
 )
 
-app_settings = get_settings()
-
-# Create a temporary directory for file uploads
-TEMP_DIR = app_settings.TEMP_DIR
-os.makedirs(TEMP_DIR, exist_ok=True)
-
 # validate the file properties
 data_controller = DataController()
 
@@ -24,6 +18,10 @@ data_controller = DataController()
 async def upload_file(file: UploadFile = File(...),
                       app_settings: Settings = Depends(get_settings)):
     
+    # Create a temporary directory for file uploads
+    TEMP_DIR = app_settings.TEMP_DIR
+    os.makedirs(TEMP_DIR, exist_ok=True)
+
     is_valid, result_signal = data_controller.validate_uploaded_file(file=file)
 
     if not is_valid:
@@ -77,7 +75,7 @@ async def process_file(file_path: str,
                 }
             )
 
-        chunks = data_processor.chunk(file_path, docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
+        chunks = data_processor.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
                                       chunk_overlap=DataEnum.OVERLAP_SIZE.value)
 
         if chunks is None or len(chunks) == 0:

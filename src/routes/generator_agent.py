@@ -22,7 +22,7 @@ generator_router = APIRouter(
 @generator_router.post("/generate-answer/")
 async def generate_answer(user_query: str = Form(...),
                         app_settings: Settings = Depends(get_settings)):
-    # try:
+    try:
         session_id = app_settings.SESSION_ID
         session = get_session(session_id)
 
@@ -49,32 +49,14 @@ async def generate_answer(user_query: str = Form(...),
             try:
                 # Create a context-aware query using chat history and current query
                 if chat_history.messages:
-                    # Convert chat history to a format suitable for the history-aware retriever
-                    history_messages = []
-                    for msg in chat_history.messages[-4:]:  # Use last 4 messages for context
-                        if msg.type == "human":
-                            history_messages.append(HumanMessage(content=msg.content))
-                        else:
-                            history_messages.append(AIMessage(content=msg.content))
-                    
                     # Use the history-aware retriever
                     context = summarizer_chain.invoke({
-                        "chat_history": history_messages,
-                        "input": query if isinstance(query, str) else query['query']
-                    })
-                    
-                    # Extract text content from the context if it's a Document object or list of Documents
-                    if isinstance(context, list):
-                        if all(hasattr(doc, 'page_content') for doc in context):
-                            search_query = ' '.join(doc.page_content for doc in context)
-                        else:
-                            search_query = ' '.join(str(doc) for doc in context)
-                    elif hasattr(context, 'page_content'):
-                        search_query = context.page_content
-                    else:
-                        search_query = str(context)
+                        "chat_history": chat_history.messages[-6:],
+                        "input": query
+                    }) 
+                    search_query = ' '.join(doc.page_content for doc in context)
                 else:
-                    search_query = query if isinstance(query, str) else query['query']
+                    search_query = query
                 
                 response = retriever.invoke(search_query)
                 return response
@@ -94,7 +76,7 @@ async def generate_answer(user_query: str = Form(...),
             app_settings.SUMMERIZATION_TEMPERATURE
         )
 
-        # Create prompt with enhanced context handling
+        # Agent prompt
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a helpful AI assistant. Use the search_documents tool to find relevant information from the documents to answer questions accurately.
              Consider the chat history when formulating your responses to maintain context and coherence.
@@ -125,18 +107,11 @@ async def generate_answer(user_query: str = Form(...),
             output_messages_key="output"
         )
 
-        # Format chat history for the chain
-        formatted_history = [
-            HumanMessage(content=msg.content) if msg.type == "human" 
-            else AIMessage(content=msg.content)
-            for msg in chat_history.messages[-4:]  # Use last 4 messages for context
-        ]
-
         # Generate response
         response = final_chain.invoke(
             {
                 "input": user_query,
-                "chat_history": formatted_history,
+                "chat_history": chat_history.messages[-6:],
             },
             config={"configurable": {"session_id": session_id}}
         )
@@ -157,11 +132,11 @@ async def generate_answer(user_query: str = Form(...),
             }
         )
     
-    # except Exception as e:
-    #     print(f"Error in generate_answer: {str(e)}")
-    #     return JSONResponse(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         content={
-    #             "signal": ResponseEnums.RAG_ANSWER_ERROR.value
-    #         }
-    #     )
+    except Exception as e:
+        print(f"Error in generate_answer: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseEnums.RAG_ANSWER_ERROR.value
+            }
+        )
