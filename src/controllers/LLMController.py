@@ -13,7 +13,7 @@ class LLMController(BaseController):
         self.settings = get_settings()
 
     def create_chat_model(self, model_name, temperature):
-        return ChatOllama(model=model_name, temperature=temperature, num_predict=256, base_url='http://localhost:11434')
+        return ChatOllama(model=model_name, temperature=temperature, base_url='http://localhost:11434')
 
     def create_context_aware_chain(self, retriever, model_name, temperature):
         """

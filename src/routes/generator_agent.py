@@ -79,6 +79,7 @@ async def generate_answer(user_query: str = Form(...),
         # Agent prompt
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a helpful AI assistant. Use the search_documents tool to find relevant information from the documents to answer questions accurately.
+             Give the answer directly without too much details.
              Consider the chat history when formulating your responses to maintain context and coherence.
              Don't include the query in the final answer.
              Don't mention that the results based on searching in the history"""),

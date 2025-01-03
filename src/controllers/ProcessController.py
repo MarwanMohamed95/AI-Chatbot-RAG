@@ -2,16 +2,12 @@ from langchain.embeddings import CacheBackedEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.storage import LocalFileStore
-from langchain.text_splitter import NLTKTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from src.controllers import BaseController
 from src.models.enums import ExtensionEnum
 from src.helpers.config import get_settings
 import hashlib
 import os
-
-import nltk
-nltk.download('punkt_tab')
-nltk.download('punkt')
 
 class ProcessController(BaseController):
 
@@ -22,7 +18,7 @@ class ProcessController(BaseController):
     def chunk(self, docs, chunk_size=1000, chunk_overlap=50):
         
         # Initialize the text splitter with the specified chunk size and overlap
-        text_splitter = NLTKTextSplitter(
+        text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len
