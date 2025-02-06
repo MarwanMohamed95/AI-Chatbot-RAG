@@ -89,7 +89,7 @@ if "chat_store" not in st.session_state:
 # Sidebar setup
 with st.sidebar:
     models_ollama = ollama.list()["models"]
-    model_name = [m['name'] for m in models_ollama]
+    model_name = [m['model'] for m in models_ollama]
     model_size = [float(m["size"]) for m in models_ollama]
     name_detail = zip(model_name, model_size)
     name_detail = sorted(name_detail, key=lambda x: x[1])
@@ -119,7 +119,6 @@ if user_query := st.chat_input("What is in your mind ?"):
     elif "answer_chain" not in st.session_state:
         st.error("Answering model was not set.")
     elif user_query:
-        
         with st.chat_message("user"):
             st.markdown(user_query)
 

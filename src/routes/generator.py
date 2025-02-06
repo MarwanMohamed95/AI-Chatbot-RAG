@@ -15,9 +15,10 @@ generator_router = APIRouter(
 )
 
 @generator_router.post("/generate-answer/")
-async def generate_answer(session_id: str = Form(...), user_query: str = Form(...),
+async def generate_answer(user_query: str = Form(...),
                           app_settings: Settings = Depends(get_settings)):
     try:
+        session_id = app_settings.SESSION_ID
         session = get_session(session_id)
 
         if 'retriever' not in session:

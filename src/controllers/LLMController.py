@@ -3,8 +3,14 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain import hub
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.tools.base import ToolException
+from langchain.tools import tool
 from src.helpers.config import get_settings
+from src.helpers.session_manager import get_session
 from src.controllers import BaseController
+from typing import Dict, Union
 
 class LLMController(BaseController):
 
@@ -37,12 +43,13 @@ class LLMController(BaseController):
         # Step 1: Initialize the Ollama model with the provided model name and configuration
         llm_summarise = self.create_chat_model(model_name=model_name, temperature=temperature)
         # Step 2: Define the system prompt to guide the model in answering the user question
-        prompt = """You are AI Assistant Given a chat history and the latest user question answer this question"""
+        prompt = hub.pull("langchain-ai/chat-langchain-rephrase")
+
         
         # Step 3: Create a prompt template using the system prompt and placeholders for chat history and user input
-        template = ChatPromptTemplate.from_messages([("system", prompt),
-                                                                MessagesPlaceholder("chat_history"),
-                                                                ("human", "{input}")])
+        template = ChatPromptTemplate.from_messages([("system", prompt.template), 
+                                                    MessagesPlaceholder("chat_history"), 
+                                                    ("human", "{input}")])
 
         # Step 4: Create a history-aware retriever using the LLM (Ollama) and the prompt defined above
         # The retriever will handle querying the knowledge base or past chat history to fetch relevant context.
@@ -64,11 +71,10 @@ class LLMController(BaseController):
         """
 
         llm_answer = self.create_chat_model(model_name=model_name, temperature=temperature)
-        
+
         # Define the system prompt
-        system_prompt = """You are an intelligent AI assistant designed to assist with a wide variety of tasks.
-            You may be provided with chat history so you can use it to answer the question.
-            Don't refer in your answer that you will be given chat history.
+        system_prompt = """You are an AI assistant that answer user queries accurately.
+            Don't mention that you are using previous context but give the answer directly.
             If you don't know the answer just say I don't know the answer.
             Context information is below:
             {context}"""
@@ -91,3 +97,48 @@ class LLMController(BaseController):
         )
 
         return chain
+
+    def create_agent_executer(self, model_name, temperature):
+        
+        SESSION_ID = "1234" 
+        session = get_session(SESSION_ID)
+        retriever = session["retriever"]
+
+        @tool
+        def search_documents(query: Union[str, Dict[str, str]]) -> str:
+            """Use this tool to search through documents for relevant information."""
+            try:
+                response = retriever.invoke(query)
+                return response
+            except Exception as e:
+                raise ToolException(f"Error searching documents: {str(e)}")
+            
+        tools = [search_documents]
+
+        llm = self.create_chat_model(model_name=model_name, temperature=temperature)
+
+        # Define the system prompt
+        system_prompt = """You are an AI assistant that answer user queries accurately.
+            Don't mention that you are using previous context but give the answer directly.
+            If you don't know the answer just say I don't know the answer.
+            """
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
+
+        agent = create_tool_calling_agent(llm, tools, prompt)
+
+        agent_executor = AgentExecutor(
+            agent=agent,
+            tools=tools,
+            handle_parsing_errors=True,
+            max_iterations=3
+        )
+
+        return agent_executor
+
+
