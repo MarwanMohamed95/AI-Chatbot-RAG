@@ -6,6 +6,7 @@ from src.models.enums import DataEnum
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain.schema import Document
 import ollama
 from src.helpers.config import get_settings
 
@@ -38,7 +39,11 @@ def file_added():
             
             docs = data_controller.read_file(file_path=file_path)
 
-            chunks = process_controller.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
+            text = data_controller.merge_documents(docs)
+            text = data_controller.clean_text(text)
+            document = Document(page_content=text)
+
+            chunks = process_controller.chunk([document], chunk_size=DataEnum.CHUNK_SIZE.value, 
                                               chunk_overlap=DataEnum.OVERLAP_SIZE.value)
             embedding_model, vector_index = process_controller.create_vector_index_and_embedding_model(chunks)
             st.session_state.retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})

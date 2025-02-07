@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain.schema import Document
 import ollama
 from src.helpers.config import get_settings
 from src.helpers.session_manager import get_session
@@ -39,6 +40,10 @@ def file_added():
     try:
         with st.spinner("Processing file, please wait..."):
             docs = data_controller.read_file(file_path=file_path)
+            text = data_controller.merge_documents(docs)
+            text = data_controller.clean_text(text)
+            document = Document(page_content=text)
+
             chunks = process_controller.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
                                            chunk_overlap=DataEnum.OVERLAP_SIZE.value)
             embedding_model, vector_index = process_controller.create_vector_index_and_embedding_model(chunks)

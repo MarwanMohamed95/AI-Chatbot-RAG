@@ -6,6 +6,7 @@ from src.models.enums import ResponseEnums, DataEnum
 from src.helpers.config import get_settings, Settings
 from src.controllers import DataController, ProcessController
 from src.helpers.session_manager import get_session
+from langchain.schema import Document
 
 uploader_router = APIRouter(
     prefix="/api/v1",
@@ -74,8 +75,12 @@ async def process_file(file_path: str,
                     "signal": ResponseEnums.LOADING_FILE_FAILED.value
                 }
             )
+        
+        text = data_controller.merge_documents(docs)
+        text = data_controller.clean_text(text)
+        document = Document(page_content=text)
 
-        chunks = data_processor.chunk(docs, chunk_size=DataEnum.CHUNK_SIZE.value, 
+        chunks = data_processor.chunk([document], chunk_size=DataEnum.CHUNK_SIZE.value, 
                                       chunk_overlap=DataEnum.OVERLAP_SIZE.value)
 
         if chunks is None or len(chunks) == 0:
@@ -88,7 +93,7 @@ async def process_file(file_path: str,
 
         embedding_model, vector_index = data_processor.create_vector_index_and_embedding_model(chunks)
 
-        retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        retriever = vector_index.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
         session = get_session(session_id)
         session['retriever'] = retriever

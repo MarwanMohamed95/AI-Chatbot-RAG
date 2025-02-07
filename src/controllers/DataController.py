@@ -4,6 +4,10 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader, WebBas
 from src.models.enums import ExtensionEnum, ResponseEnums
 from src.controllers import DataController
 from src.helpers.config import get_settings
+import re
+import ftfy
+import nltk
+import unicodedata
 
 class DataController(BaseController):
     
@@ -45,6 +49,42 @@ class DataController(BaseController):
         
         return docs
 
+    def merge_documents(self, docs):
+        return " ".join([doc.page_content for doc in docs])
+
+    def clean_text(self, text: str) -> str:
+        """
+        Cleans raw extracted text before chunking for RAG applications.
+        """
+        # Fix encoding issues (e.g., replace broken characters)
+        text = ftfy.fix_text(text)
+
+        # Normalize Unicode (e.g., convert accented chars to base form)
+        text = unicodedata.normalize("NFKC", text)
+
+        # Remove page numbers, headers, and footers
+        text = re.sub(r"\bPage \d+\b", "", text)  # Remove "Page 1, Page 2..."
+        text = re.sub(r"(Copyright|All rights reserved|Terms of use).*", "", text, flags=re.IGNORECASE)
+
+        # Remove URLs & emails
+        text = re.sub(r"http[s]?://\S+", "", text)  # URLs
+        text = re.sub(r"\S+@\S+", "", text)  # Emails
+
+        # Remove Roman numerals (I, II, III, IV, etc.)
+        text = re.sub(r"\bM{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\b", "", text, flags=re.IGNORECASE)
+
+        # Normalize whitespace & punctuation
+        text = re.sub(r"\s+", " ", text)  # Replace multiple spaces with a single space
+        text = re.sub(r"([?.!,;:])\1+", r"\1", text)  # Reduce repeated punctuation (e.g., "!!!" -> "!")
+
+        # Remove special characters (except important ones)
+        text = re.sub(r"[^\w\s.,!?\"'()\-]", "", text)  
+
+        # Convert to lowercase (optional)
+        text = text.lower()
+
+        return text.strip()
+    
     def read_webpage(self, page_url):
         """
         Load and parse the content of a webpage.
