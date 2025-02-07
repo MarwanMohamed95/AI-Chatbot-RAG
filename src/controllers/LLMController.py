@@ -74,7 +74,9 @@ class LLMController(BaseController):
 
         # Define the system prompt
         system_prompt = """You are an AI assistant that answer user queries accurately.
-            Don't mention that you are using previous context but give the answer directly.
+            Give the answer to the user query based on the context provided.
+            Give the answer directly without mentioning the context.
+            Give the answer in summary.
             If you don't know the answer just say I don't know the answer.
             Context information is below:
             {context}"""

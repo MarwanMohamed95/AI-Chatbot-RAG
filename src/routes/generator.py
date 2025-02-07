@@ -55,7 +55,10 @@ async def generate_answer(user_query: str = Form(...),
         )
 
         response = final_chain.invoke(
-            {"input": user_query},
+            {
+                "input": user_query,
+                "chat_history": chat_history.messages[-4:],
+            },
             config={"configurable": {"session_id": session_id}}
         )
 

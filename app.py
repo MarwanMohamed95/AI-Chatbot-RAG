@@ -5,9 +5,8 @@ import uvicorn
 app = FastAPI()
 
 app.include_router(base.base_router)
-app.include_router(data.uploader_router)
-app.include_router(data.processor_router)
-app.include_router(generator_agent.generator_router)
+app.include_router(data.upload_process_router)
+app.include_router(generator.generator_router)
 
 if __name__ == "__main__":
     uvicorn.run(

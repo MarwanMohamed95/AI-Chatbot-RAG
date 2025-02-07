@@ -61,24 +61,24 @@ class ProcessController(BaseController):
             namespace=namespace
         )
         
-        # Step 4: Check for existing vector store
-        vector_store_path = self.settings.VECTOR_DB_PATH
-        if os.path.exists(vector_store_path):
-            try:
-                vector_index = FAISS.load_local(
-                    vector_store_path,
-                    embedder,
-                    allow_dangerous_deserialization=True
-                )
-                return embeddings_model, vector_index
-            except Exception as e:
-                print(f"Error loading vector store: {e}")
+        # # Step 4: Check for existing vector store
+        # vector_store_path = self.settings.VECTOR_DB_PATH
+        # if os.path.exists(vector_store_path):
+        #     try:
+        #         vector_index = FAISS.load_local(
+        #             vector_store_path,
+        #             embedder,
+        #             allow_dangerous_deserialization=True
+        #         )
+        #         return embeddings_model, vector_index
+        #     except Exception as e:
+        #         print(f"Error loading vector store: {e}")
 
         vector_index = FAISS.from_documents(chunks, embedder)
         
-        # Step 7: Save vector store for future use
-        os.makedirs(vector_store_path, exist_ok=True)
-        vector_index.save_local(vector_store_path)
+        # # Step 7: Save vector store for future use
+        # os.makedirs(vector_store_path, exist_ok=True)
+        # vector_index.save_local(vector_store_path)
         
         return embeddings_model, vector_index
     

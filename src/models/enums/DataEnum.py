@@ -1,6 +1,6 @@
 from enum import Enum
 
 class DataEnum(Enum):
-    CHUNK_SIZE = 1000
-    OVERLAP_SIZE = 50
+    CHUNK_SIZE = 5000
+    OVERLAP_SIZE = 100
     
