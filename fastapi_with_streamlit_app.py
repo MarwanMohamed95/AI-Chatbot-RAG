@@ -66,7 +66,7 @@ with st.sidebar:
     st.header("Document Upload")
     uploaded_file = st.file_uploader(
         "Choose a document", 
-        type=['txt', 'pdf', 'docx', 'csv'],
+        type=['txt', 'pdf'],
         help="Upload a document to chat with"
     )
 

@@ -30,10 +30,10 @@ class ProcessController(BaseController):
 
     def create_vector_index_and_embedding_model(self, chunks):
         """
-        Creates an embedding model and vector index using Langchain and Ollama embeddings.
+        Creates an embedding model and vector index using Langchain and embeddings model.
         
         This function takes a list of text chunks (documents), creates an embedding model using 
-        Ollama, and then uses FAISS (a vector store) to create a vector index that allows for 
+        embeddings model, and then uses FAISS (a vector store) to create a vector index that allows for 
         efficient similarity search. The function includes caching.
         
         Args:
@@ -41,7 +41,7 @@ class ProcessController(BaseController):
         
         Returns:
             tuple: Returns a tuple containing:
-                - embeddings_model: The Ollama embedding model used for encoding the text.
+                - embeddings_model: The embedding model used for encoding the text.
                 - vector_index: The FAISS index that stores the vectors of the documents for fast retrieval.
         """
         

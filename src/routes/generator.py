@@ -15,7 +15,6 @@ generator_router = APIRouter(
     prefix="/api/v1",
 )
 
-# FastAPI endpoint
 @generator_router.post("/generate-answer/")
 async def generate_answer(
     question: str = Form(...),
@@ -34,7 +33,7 @@ async def generate_answer(
             )
         
         retriever = session['retriever']
-        ollama_model_name = app_settings.GENERATION_MODEL_ID
+        model_name = app_settings.GENERATION_MODEL_ID
 
         if 'chat_history' not in session:
             session['chat_history'] = ChatMessageHistory()
@@ -43,12 +42,12 @@ async def generate_answer(
 
         summerizer_chain = llm_controller.create_context_aware_chain(
             retriever, 
-            ollama_model_name,
+            model_name,
             app_settings.SUMMERIZATION_TEMPERATURE
         )
         
         retriever_answer_chain = llm_controller.create_answering_chain(
-            ollama_model_name,
+            model_name,
             summerizer_chain,
             app_settings.GENERATION_TEMPERATURE
         )
