@@ -1,6 +1,6 @@
 from .BaseController import BaseController
 from fastapi import UploadFile
-from langchain_community.document_loaders import TextLoader, PyPDFLoader, WebBaseLoader, CSVLoader, UnstructuredHTMLLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from src.models.enums import ExtensionEnum, ResponseEnums
 from src.controllers import DataController
 from src.helpers.config import get_settings
@@ -37,14 +37,6 @@ class DataController(BaseController):
         
         elif file_extension == ExtensionEnum.PDF.value:
             loader = PyPDFLoader(file_path)
-            docs = loader.load()
-
-        elif file_extension == ExtensionEnum.CSV.value:
-            loader = CSVLoader(file_path)
-            docs = loader.load()
-
-        elif file_extension == ExtensionEnum.HTML.value:
-            loader = UnstructuredHTMLLoader(file_path)
             docs = loader.load()
         
         return docs
@@ -85,20 +77,3 @@ class DataController(BaseController):
 
         return text.strip()
     
-    def read_webpage(self, page_url):
-        """
-        Load and parse the content of a webpage.
-        
-        Args:
-            page_url (str): The URL of the webpage to be loaded.
-        
-        Returns:
-            list: A list of Document objects containing the webpage's content.
-        """
-        loader = WebBaseLoader(web_paths=[page_url])
-        docs = []
-        
-        # Asynchronously load and append webpage content
-        for doc in loader.alazy_load():
-            docs.append(doc)
-        return docs
