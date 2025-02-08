@@ -76,14 +76,14 @@ async def generate_answer(
 
                     accumulated_answer += token
                     # Format as proper SSE
-                    yield f"data: {token}\n\n"
+                    yield f"{token}\n\n"
                 
                 # Send a completion signal
-                yield "data: [DONE]\n\n"
+                yield "[DONE]\n\n"
                 
             except Exception as e:
-                yield f"data: Error: {str(e)}\n\n"
-                yield "data: [DONE]\n\n"
+                yield f"Error: {str(e)}\n\n"
+                yield "[DONE]\n\n"
 
             # Update chat history after streaming
             chat_history.add_user_message(query)

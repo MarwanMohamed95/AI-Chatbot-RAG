@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from src.routes import base, data, generator, generator_agent
+from src.routes import base, data, generator
 import uvicorn
 
 app = FastAPI()

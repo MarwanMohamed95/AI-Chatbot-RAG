@@ -43,12 +43,10 @@ def chat_with_llm(session_id, question):
                 for line in response.iter_lines():
                     if line:
                         line = line.decode('utf-8')
-                        if line.startswith('data: '):
-                            data = line[6:]  # Remove 'data: ' prefix
-                            if data == '[DONE]':
-                                break
-                            response_text += data
-                            yield response_text
+                        if line == '[DONE]':
+                            break
+                        response_text += line
+                        yield response_text
             else:
                 st.error(f"Error: {response.status_code}")
                 yield "An error occurred while generating the response."

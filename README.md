@@ -23,7 +23,7 @@ Ensure you have the following installed:
 ### 1. Clone the Repository
 ```sh
 git clone https://github.com/MarwanMohamed95/AI-Chatbot-RAG.git
-cd AI_Chatbot
+cd AI-Chatbot-RAG
 ```
 
 ### 2. Set Up a Virtual Environment
