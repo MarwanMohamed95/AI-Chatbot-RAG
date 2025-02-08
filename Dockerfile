@@ -1,13 +1,17 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
-WORKDIR /rag_task
+WORKDIR /AI-Chatbot-RAG
 
-COPY ./rag_task/requirements.txt /rag_task/
+COPY ./AI-Chatbot-RAG/requirements.txt /AI-Chatbot-RAG/
 
 RUN pip install -r requirements.txt
 
 RUN apt-get update && apt-get install -y curl
 
-COPY ./rag_task /rag_task
+COPY ./AI-Chatbot-RAG /AI-Chatbot-RAG
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
+# Expose FastAPI port
+EXPOSE 5000
+
+# Run the application
+CMD ["python", "app.py"]
