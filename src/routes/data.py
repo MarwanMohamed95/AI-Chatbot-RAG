@@ -88,8 +88,7 @@ async def upload_and_process(file: UploadFile = File(...),
             content={
                 "signal": ResponseEnums.PROCESSING_SUCCESS.value,
                 "file_name": file.filename,
-                "inserted_chunks": len(chunks),
-                "session_id": session_id
+                "inserted_chunks": len(chunks)
             }
         )
 

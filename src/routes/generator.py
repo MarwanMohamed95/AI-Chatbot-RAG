@@ -6,7 +6,6 @@ from src.controllers import LLMController
 from src.helpers.session_manager import get_session
 from src.helpers.config import get_settings, Settings
 from src.models.enums import ResponseEnums
-import streamlit as st
 from typing import AsyncGenerator
 
 llm_controller = LLMController()

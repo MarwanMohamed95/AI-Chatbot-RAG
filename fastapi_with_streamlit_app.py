@@ -18,7 +18,6 @@ def upload_file(uploaded_file):
 
         if response.status_code == 200:
             data = response.json()
-            st.session_state.session_id = data.get('session_id')
             st.session_state.file_uploaded = True
             st.success(f"File processed: {data.get('file_name', 'Unknown file')}")
             st.info(f"Chunks inserted: {data.get('inserted_chunks', 0)}")
@@ -27,7 +26,7 @@ def upload_file(uploaded_file):
     except Exception as e:
         st.error(f"Error uploading file: {e}")
 
-def chat_with_llm(session_id, question):
+def chat_with_llm(question):
     """Stream responses from the backend"""
     payload = {"question": question}
 
@@ -80,27 +79,24 @@ for message in st.session_state.messages:
 
 # Chat input and response handling
 if question := st.chat_input("What is in your mind?"):
-    if "session_id" not in st.session_state:
-        st.error("Please upload and process a document first")
-    else:
-        # Store user message
-        st.session_state.messages.append({"role": "user", "content": question})
-        with st.chat_message("user"):
-            st.markdown(question)
+    # Store user message
+    st.session_state.messages.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
 
-        # Handle assistant response
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-            
-            # Stream the response
-            for response_chunk in chat_with_llm(st.session_state.session_id, question):
-                full_response = response_chunk
-                message_placeholder.markdown(full_response + "▌")
-            
-            # Remove cursor and display final response
-            message_placeholder.markdown(full_response)
-            
-            # Store the complete response
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
+    # Handle assistant response
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        
+        # Stream the response
+        for response_chunk in chat_with_llm(question):
+            full_response = response_chunk
+            message_placeholder.markdown(full_response + "▌")
+        
+        # Remove cursor and display final response
+        message_placeholder.markdown(full_response)
+        
+        # Store the complete response
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        
