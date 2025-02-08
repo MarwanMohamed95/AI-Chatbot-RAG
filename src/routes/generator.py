@@ -1,12 +1,13 @@
-# generate_answer.py
 from fastapi import APIRouter, Form, Depends, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from src.controllers import LLMController
 from src.helpers.session_manager import get_session
 from src.helpers.config import get_settings, Settings
 from src.models.enums import ResponseEnums
+import streamlit as st
+from typing import AsyncGenerator
 
 llm_controller = LLMController()
 
@@ -14,9 +15,12 @@ generator_router = APIRouter(
     prefix="/api/v1",
 )
 
+# FastAPI endpoint
 @generator_router.post("/generate-answer/")
-async def generate_answer(user_query: str = Form(...),
-                          app_settings: Settings = Depends(get_settings)):
+async def generate_answer(
+    question: str = Form(...),
+    app_settings: Settings = Depends(get_settings)
+) -> StreamingResponse:
     try:
         session_id = app_settings.SESSION_ID
         session = get_session(session_id)
@@ -37,8 +41,11 @@ async def generate_answer(user_query: str = Form(...),
 
         chat_history = session['chat_history']
 
-        summerizer_chain = llm_controller.create_context_aware_chain(retriever, ollama_model_name,
-                                                                    app_settings.SUMMERIZATION_TEMPERATURE)
+        summerizer_chain = llm_controller.create_context_aware_chain(
+            retriever, 
+            ollama_model_name,
+            app_settings.SUMMERIZATION_TEMPERATURE
+        )
         
         retriever_answer_chain = llm_controller.create_answering_chain(
             ollama_model_name,
@@ -48,39 +55,56 @@ async def generate_answer(user_query: str = Form(...),
 
         final_chain = RunnableWithMessageHistory(
             retriever_answer_chain,
-            lambda x: chat_history,
+            lambda x: ChatMessageHistory(messages=chat_history.messages[-4:]),
             input_messages_key="input",
             history_messages_key="chat_history",
             output_messages_key="answer",
         )
 
-        response = final_chain.invoke(
-            {
-                "input": user_query,
-                "chat_history": chat_history.messages[-4:],
-            },
-            config={"configurable": {"session_id": session_id}}
-        )
+        query = f"Answer the following question in summary: {question}"
 
-        if isinstance(response, dict) and "answer" in response:
-            answer = response["answer"]
-        else:
-            answer = response
+        async def stream_response() -> AsyncGenerator[str, None]:
+            accumulated_answer = ""
+            try:
+                async for chunk in final_chain.astream(
+                    {"input": query},
+                    config={"configurable": {"session_id": session_id}}
+                ):
+                    if isinstance(chunk, dict) and "answer" in chunk:
+                        token = chunk["answer"]
+                    else:
+                        token = str(chunk)
 
-        chat_history.add_user_message(user_query)
-        chat_history.add_ai_message(answer)
+                    accumulated_answer += token
+                    # Format as proper SSE
+                    yield f"data: {token}\n\n"
+                
+                # Send a completion signal
+                yield "data: [DONE]\n\n"
+                
+            except Exception as e:
+                yield f"data: Error: {str(e)}\n\n"
+                yield "data: [DONE]\n\n"
 
-        return JSONResponse(
-            content={
-                "answer": answer,
-                "signal": ResponseEnums.RAG_ANSWER_SUCCESS.value
+            # Update chat history after streaming
+            chat_history.add_user_message(query)
+            chat_history.add_ai_message(accumulated_answer)
+
+        return StreamingResponse(
+            stream_response(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Content-Type": "text/event-stream",
             }
         )
-    
+
     except Exception as e:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
-                "signal": ResponseEnums.RAG_ANSWER_ERROR.value
+                "signal": ResponseEnums.RAG_ANSWER_ERROR.value,
+                "error": str(e)
             }
         )

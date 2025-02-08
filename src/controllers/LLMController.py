@@ -39,23 +39,26 @@ class LLMController(BaseController):
                                             considering the chat history.
 
         """
-        
-        # Step 1: Initialize the Ollama model with the provided model name and configuration
+        # Initialize the answer model with the provided model name and configuration
         llm_summarise = self.create_chat_model(model_name=model_name, temperature=temperature)
-        # Step 2: Define the system prompt to guide the model in answering the user question
-        prompt = hub.pull("langchain-ai/chat-langchain-rephrase")
-
         
-        # Step 3: Create a prompt template using the system prompt and placeholders for chat history and user input
-        template = ChatPromptTemplate.from_messages([("system", prompt.template), 
-                                                    MessagesPlaceholder("chat_history"), 
-                                                    ("human", "{input}")])
+        # Define the rephrasing prompt to guide the model in rephrasing the history-aware query
+        rephrasing_prompt = """Rephrase the user's question to be self-contained, considering the chat history but focusing on the current query. 
+        Maintain the original intent while making it standalone.
+        Do not include previous answers or explanations in your rephrasing."""
 
-        # Step 4: Create a history-aware retriever using the LLM (Ollama) and the prompt defined above
-        # The retriever will handle querying the knowledge base or past chat history to fetch relevant context.
-        history_aware_retriever = create_history_aware_retriever(llm_summarise, retriever, template)
+        template = ChatPromptTemplate.from_messages([
+            ("system", rephrasing_prompt), 
+            MessagesPlaceholder("chat_history"), 
+            ("human", "{input}")
+        ])
+
+        history_aware_retriever = create_history_aware_retriever(
+            llm_summarise, 
+            retriever, 
+            template
+        )
         
-        # Return the context-aware retriever, which can be used for querying
         return history_aware_retriever
 
     def create_answering_chain(self, model_name, retriever_chain, temperature):
@@ -69,17 +72,16 @@ class LLMController(BaseController):
         Returns:
             chain: The question-answering chain that incorporates context-aware retrieval.
         """
-
+        # Initialize the answer model with the provided model name and configuration
         llm_answer = self.create_chat_model(model_name=model_name, temperature=temperature)
 
-        # Define the system prompt
-        system_prompt = """You are an AI assistant that answer user queries accurately.
-            Give the answer to the user query based on the context provided.
-            Give the answer directly without mentioning the context.
-            Give the answer in summary.
-            If you don't know the answer just say I don't know the answer.
-            Context information is below:
-            {context}"""
+        # Define the system prompt to guide the model in answering the user question
+        system_prompt = """You are an intelligent assistant providing responses based on a retrieval-augmented generation system. 
+            Always prioritize retrieved content, ensuring responses are accurate, well-structured, and relevant. 
+            Give the answer in summary without too much details.
+            If the retrieved documents do not contain an answer just say "I don't know the answer". 
+            Don't mention that the answer based on provided or previous information.
+            """
 
         # Create prompt template for the question-answering task
         qa_prompt = ChatPromptTemplate.from_messages([

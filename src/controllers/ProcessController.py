@@ -50,16 +50,16 @@ class ProcessController(BaseController):
         store = LocalFileStore(cache_dir)
         os.makedirs(cache_dir, exist_ok=True)
         
-        # Step 2: Initialize the Ollama embedding model
+        # Initialize the the embedding model
         embeddings_model = OllamaEmbeddings(model=self.settings.EMBEDDING_MODEL_ID)
-        
-        # Step 3: Create cache-backed embeddings with safe key encoding
-        namespace = hashlib.sha256(self.settings.EMBEDDING_MODEL_ID.encode()).hexdigest()
-        embedder = CacheBackedEmbeddings.from_bytes_store(
-            embeddings_model,
-            store,
-            namespace=namespace
-        )
+
+        # # Step 3: Create cache-backed embeddings with safe key encoding
+        # namespace = hashlib.sha256(self.settings.EMBEDDING_MODEL_ID.encode()).hexdigest()
+        # embedder = CacheBackedEmbeddings.from_bytes_store(
+        #     embeddings_model,
+        #     store,
+        #     namespace=namespace
+        # )
         
         # # Step 4: Check for existing vector store
         # vector_store_path = self.settings.VECTOR_DB_PATH
@@ -74,7 +74,7 @@ class ProcessController(BaseController):
         #     except Exception as e:
         #         print(f"Error loading vector store: {e}")
 
-        vector_index = FAISS.from_documents(chunks, embedder)
+        vector_index = FAISS.from_documents(chunks, embeddings_model)
         
         # # Step 7: Save vector store for future use
         # os.makedirs(vector_store_path, exist_ok=True)
